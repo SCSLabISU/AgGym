@@ -86,9 +86,13 @@ for ep in range(1):
         #     pdb.set_trace()
         if env.timestep==int(env.pesticide_timestep):
         
-            obs, reward, done = env.step(3)
+            # obs, reward, done = env.step(3)
+            obs, reward, terminated, truncated, info = env.step(3)
+            done = terminated or truncated
         else:
-            obs, reward, done = env.step(0)
+            # obs, reward, done = env.step(0)
+            obs, reward, terminated, truncated, info = env.step(0)
+            done = terminated or truncated
         env_end = time.time()
         env_list.append(env_end - env_start)
         # R += reward

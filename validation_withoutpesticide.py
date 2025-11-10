@@ -82,7 +82,9 @@ for ep in range(1):
         # agent_list.append(agent_end - agent_start)
         env_start = time.time()
         # obs, reward, done = env.step(action)
-        obs, reward, done = env.step(0)
+        # obs, reward, done = env.step(0)
+        obs, reward, terminated, truncated, info = env.step(0)
+        done = terminated or truncated
         env_end = time.time()
         env_list.append(env_end - env_start)
         # R += reward

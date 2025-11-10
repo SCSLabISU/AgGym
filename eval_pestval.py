@@ -194,7 +194,9 @@ with agent.eval_mode():
                 obs=np.reshape(obs, (1, 41))
                 action = agent.act(obs)
                 action=int(action)
-                obs, reward, done = env.step(action)
+                # obs, reward, done = env.step(action)
+                obs, reward, terminated, truncated, info = env.step(action)
+                done = terminated or truncated
                 R += reward
                 agent.observe(obs, reward, done, done)
                 print(f"Step: {i}, Action: {action} Reward: {reward}, Done: {done}")

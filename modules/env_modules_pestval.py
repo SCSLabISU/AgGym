@@ -3,7 +3,7 @@ import numpy as np
 from utils import env_utils
 from modules import threat_modules_pestval as tm
 from utils import general_utils as gu
-import gym
+import gymnasium as gym
 import logging
 from PIL import Image
 from pathlib import Path
@@ -30,7 +30,7 @@ INFECTED = 2.0
 ALIVE = 3.0
 MRES = 4.0
 import pdb 
-class cartesian_grid:
+class cartesian_grid(gym.Env):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -422,9 +422,13 @@ class cartesian_grid:
         self.temp_list.append(((temp_max+temp_min)/2)-273.15)
         self.list_length += 1
 
-        self.threat = eval(f"tm.{self.threat_name}({self.plotL*2}, {self.plotW*2}, {self.plotL*4}, {self.plotW*4}, self.grid, self.coords_x, self.coords_y, self.pesticide_actions)")
+        self.threat = eval(f"tm.{self.threat_name}({self.plotL*1}, {self.plotW*1}, {self.plotL*2}, {self.plotW*2}, self.grid, self.coords_x, self.coords_y, self.pesticide_actions)")
 
-    def reset(self):
+    # def reset(self):
+    def reset(self, *, seed=None, options=None):
+    # optional: support Gymnasium's seed API
+        if seed is not None:
+            self.np_random, _ = gym.utils.seeding.np_random(seed)
         self.grid = self.remap_grid(ALIVE)
         self.timestep = 0
         self.episode += 1
@@ -468,21 +472,15 @@ class cartesian_grid:
         env_utils.retrieve_growth_stage(self)
         # if self.mode == "eval" or (self.mode == "train" and self.timestep % 1000 == 0 and self.plot_progression == 'True'):
         #     env_utils.plot_grid(self, "start_grid")
-        return state_accumulator.main(self)
-        
-    def step(self, action):
+        # return state_accumulator.main(self)
+        obs = state_accumulator.main(self)
+        info = {}
+        return obs, info
 
+    def step(self, action):
+        self.sev=[]
         self.action = action
         start = time.time()
-        self.grid, Degraded_list, infectdeg_list = self.threat.compute_infection(action, self.grid, self.gs_title, self.timestep, self.sim_mode, self.withpest_val, self.severity)
-        end = time.time()
-        logging.debug(f"Timestep: {self.timestep}, spread_computation: {end - start}")
-        # if self.sim_from_data == 'True' and self.threat.key == True and self.key == False:
-        #     temp = self.temp_list[self.index][self.timestep]
-        #     prec = self.precipitation_list[self.index][self.timestep]
-        #     odds = 66.571 - 0.74 * prec - 2.594 * temp + 0.026 * prec * temp
-        #     self.severity = np.exp(odds) / (1 + np.exp(odds))
-        #     self.key = True
         if self.sim_from_data == 'True':
 
             if self.timestep < len(self.temp_list[0]):
@@ -497,7 +495,19 @@ class cartesian_grid:
             self.key = True
             self.temp=temp
             self.prec=prec
-            # self.severity =0.06
+            # pdb.set_trace()
+            # self.severity =0.67
+            self.sev.append(self.severity)
+        self.grid, Degraded_list, infectdeg_list = self.threat.compute_infection(action, self.grid, self.gs_title, self.timestep, self.sim_mode, self.withpest_val, self.severity)
+        end = time.time()
+        logging.debug(f"Timestep: {self.timestep}, spread_computation: {end - start}")
+        # if self.sim_from_data == 'True' and self.threat.key == True and self.key == False:
+        #     temp = self.temp_list[self.index][self.timestep]
+        #     prec = self.precipitation_list[self.index][self.timestep]
+        #     odds = 66.571 - 0.74 * prec - 2.594 * temp + 0.026 * prec * temp
+        #     self.severity = np.exp(odds) / (1 + np.exp(odds))
+        #     self.key = True
+        
         # Done condition
         done = done_delegator.main(self)
 
@@ -529,9 +539,18 @@ class cartesian_grid:
              # or (self.mode == "train" and self.episode % 1000 == 0)
             env_utils.plot_field(self, f"step_plot_state_{str(self.timestep).zfill(6)}")
         self.timestep += 1
+        if done:
+            average=sum(self.sev)/len(self.sev)
+            print(average)
+        # return state_accumulator.main(self), reward, done
+            # NEW: standard Gymnasium return
+        obs = state_accumulator.main(self)
+        terminated = bool(done)
+        truncated = False   # or (self.timestep >= self.max_timestep) if you want
+        info = {}
 
-        return state_accumulator.main(self), reward, done
-
+        return obs, reward, terminated, truncated, info
+    
 # class insectEnv(baseEnv):
 #     def __init__(self, **kwargs):
 #         super().__init__(**kwargs)
